@@ -52,21 +52,20 @@ def save_subscribers(subs):
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
-    [InlineKeyboardButton("📖 Vangelo del giorno", callback_data="vangelo")],
-    [InlineKeyboardButton("📚 Lettura del giorno", callback_data="lettura")],
-    [InlineKeyboardButton("🙏 Preghiera del mattino", callback_data="mattino")],
-    [InlineKeyboardButton("🌙 Preghiera della sera", callback_data="sera")],
-    [InlineKeyboardButton("✝️ Santo del giorno", callback_data="santo")],
-    [InlineKeyboardButton("💭 Riflessione", callback_data="riflessione")],
-    [InlineKeyboardButton("📿 Rosario", callback_data="rosario")],
-    [InlineKeyboardButton("🕊️ Novena del giorno", callback_data="novena")],
-    [InlineKeyboardButton("📬 Iscriviti al Vangelo quotidiano", callback_data="iscriviti")],
-    [InlineKeyboardButton("❌ Disiscriviti", callback_data="disiscriviti")],
-    [InlineKeyboardButton("🛍️ Visita il negozio", url=NEGOZIO_URL)],
-    [InlineKeyboardButton("📘 Visita il blog", url=BLOG_URL)],
-]
+        [InlineKeyboardButton("📖 Vangelo del giorno", callback_data="vangelo")],
+        [InlineKeyboardButton("📚 Lettura del giorno", callback_data="lettura")],
+        [InlineKeyboardButton("🙏 Preghiera del mattino", callback_data="mattino")],
+        [InlineKeyboardButton("🌙 Preghiera della sera", callback_data="sera")],
+        [InlineKeyboardButton("✝️ Santo del giorno", callback_data="santo")],
+        [InlineKeyboardButton("💭 Riflessione", callback_data="riflessione")],
+        [InlineKeyboardButton("📿 Rosario", callback_data="rosario")],
+        [InlineKeyboardButton("🕊️ Novena del giorno", callback_data="novena")],
+        [InlineKeyboardButton("📬 Iscriviti al Vangelo quotidiano", callback_data="iscriviti")],
+        [InlineKeyboardButton("❌ Disiscriviti", callback_data="disiscriviti")],
+        [InlineKeyboardButton("🛍️ Visita il negozio", url=NEGOZIO_URL)],
+        [InlineKeyboardButton("📘 Visita il blog", url=BLOG_URL)],
+    ]
 
-      
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     text = (
@@ -99,6 +98,24 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             await query.edit_message_text("Non è stato possibile caricare la lettura. Riprova più tardi.")
 
+    elif data == "mattino":
+        await query.edit_message_text("🙏 *Preghiera del mattino*\n\nSignore, ti offro questo nuovo giorno...", parse_mode="Markdown")
+
+    elif data == "sera":
+        await query.edit_message_text("🌙 *Preghiera della sera*\n\nSignore, ti ringrazio per questa giornata...", parse_mode="Markdown")
+
+    elif data == "santo":
+        await query.edit_message_text("✝️ *Santo del giorno*\n\n(qui inseriremo il santo del giorno)", parse_mode="Markdown")
+
+    elif data == "riflessione":
+        await query.edit_message_text("💭 *Riflessione*\n\n(qui inseriremo una riflessione quotidiana)", parse_mode="Markdown")
+
+    elif data == "rosario":
+        await query.edit_message_text("📿 *Rosario*\n\n(qui inseriremo il testo del Rosario)", parse_mode="Markdown")
+
+    elif data == "novena":
+        await query.edit_message_text("🕊️ *Novena del giorno*\n\n(qui inseriremo la novena)", parse_mode="Markdown")
+
     elif data == "iscriviti":
         subs = load_subscribers()
         if chat_id not in subs:
@@ -116,23 +133,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.edit_message_text("❌ Hai disattivato il Vangelo quotidiano.")
         else:
             await query.edit_message_text("Non risulti iscritto al Vangelo quotidiano.")
-elif data == "mattino":
-    await query.edit_message_text("🙏 *Preghiera del mattino*\n\nSignore, ti offro questo nuovo giorno...", parse_mode="Markdown")
-
-elif data == "sera":
-    await query.edit_message_text("🌙 *Preghiera della sera*\n\nSignore, ti ringrazio per questa giornata...", parse_mode="Markdown")
-
-elif data == "santo":
-    await query.edit_message_text("✝️ *Santo del giorno*\n\n(qui inseriremo il santo del giorno)", parse_mode="Markdown")
-
-elif data == "riflessione":
-    await query.edit_message_text("💭 *Riflessione*\n\n(qui inseriremo una riflessione quotidiana)", parse_mode="Markdown")
-
-elif data == "rosario":
-    await query.edit_message_text("📿 *Rosario*\n\n(qui inseriremo il testo del Rosario)", parse_mode="Markdown")
-
-elif data == "novena":
-    await query.edit_message_text("🕊️ *Novena del giorno*\n\n(qui inseriremo la novena)", parse_mode="Markdown")
 
 
 def main():
@@ -143,8 +143,6 @@ def main():
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(button_handler))
-
-    # 🔔 Scheduler delle 7 lo aggiungeremo quando il bot sarà su PythonAnywhere
 
     app.run_polling()
 
