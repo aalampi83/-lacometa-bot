@@ -1,151 +1,156 @@
 import os
+import csv
 import json
 import logging
-import feedparser
+from datetime import datetime
+
+from dotenv import load_dotenv
+load_dotenv()
 
 from telegram import (
     Update,
-    InlineKeyboardButton,
-    InlineKeyboardMarkup,
+    ReplyKeyboardMarkup,
 )
 from telegram.ext import (
     ApplicationBuilder,
     CommandHandler,
-    CallbackQueryHandler,
+    MessageHandler,
     ContextTypes,
+    filters,
 )
 
-logging.basicConfig(level=logging.INFO)
-LOGGER = logging.getLogger(__name__)
+# -------------------------------
+# LETTURA CALENDARIO 2026
+# -------------------------------
 
-TOKEN = os.environ.get("TELEGRAM_TOKEN")
+def leggi_calendario():
+    calendario = {}
+    with open("calendario 2026 telegram.csv", encoding="utf-8-sig") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            calendario[row["data"].strip('"')] = row
+    return calendario
 
-RSS_VANGELO = "https://www.vaticannews.va/it/evangelii.xml"
-RSS_LETTURA = "https://www.vaticannews.va/it/rss.xml"
+calendario = leggi_calendario()
 
-NEGOZIO_URL = "https://www.lacometaarticolireligiosi.it/"
-BLOG_URL = "https://www.lacometaarticolireligiosi.it/blog-e-news"
+def contenuto_del_giorno():
+    oggi = datetime.now().strftime("%Y-%m-%d")
+    if oggi in calendario:
+        return calendario[oggi]
+    return None
 
+# -------------------------------
+# MENU PRINCIPALE
+# -------------------------------
 
-def get_first_entry_text(url: str) -> str | None:
-    feed = feedparser.parse(url)
-    if not feed.entries:
-        return None
-    entry = feed.entries[0]
-    titolo = entry.title
-    testo = getattr(entry, "summary", getattr(entry, "description", ""))
-    return f"📖 *{titolo}*\n\n{testo}"
+main_menu = ReplyKeyboardMarkup(
+    [
+        ["📖 Vangelo del giorno", "📜 Lettura del giorno"],
+        ["🌅 Preghiera del mattino", "🌙 Preghiera della sera"],
+        ["👼 Santo del giorno", "✨ Riflessione"],
+        ["🌟 Rosario consigliato", "🙏 Novena del giorno"]
+    ],
+    resize_keyboard=True
+)
 
-
-def load_subscribers():
-    try:
-        with open("subscribers.json", "r", encoding="utf-8") as f:
-            return json.load(f)
-    except Exception:
-        return []
-
-
-def save_subscribers(subs):
-    with open("subscribers.json", "w", encoding="utf-8") as f:
-        json.dump(subs, f)
-
+# -------------------------------
+# COMANDI
+# -------------------------------
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    keyboard = [
-        [InlineKeyboardButton("📖 Vangelo del giorno", callback_data="vangelo")],
-        [InlineKeyboardButton("📚 Lettura del giorno", callback_data="lettura")],
-        [InlineKeyboardButton("🙏 Preghiera del mattino", callback_data="mattino")],
-        [InlineKeyboardButton("🌙 Preghiera della sera", callback_data="sera")],
-        [InlineKeyboardButton("✝️ Santo del giorno", callback_data="santo")],
-        [InlineKeyboardButton("💭 Riflessione", callback_data="riflessione")],
-        [InlineKeyboardButton("📿 Rosario", callback_data="rosario")],
-        [InlineKeyboardButton("🕊️ Novena del giorno", callback_data="novena")],
-        [InlineKeyboardButton("📬 Iscriviti al Vangelo quotidiano", callback_data="iscriviti")],
-        [InlineKeyboardButton("❌ Disiscriviti", callback_data="disiscriviti")],
-        [InlineKeyboardButton("🛍️ Visita il negozio", url=NEGOZIO_URL)],
-        [InlineKeyboardButton("📘 Visita il blog", url=BLOG_URL)],
-    ]
-
-    reply_markup = InlineKeyboardMarkup(keyboard)
-
-    text = (
-        "🌟 Benvenuto in *La Cometa Articoli Religiosi*!\n\n"
-        "Ogni giorno trovi qui il Vangelo, le letture e le preghiere.\n"
-        "Scegli cosa vuoi leggere oggi 👇"
+    await update.message.reply_text(
+        "Benvenuto nel calendario spirituale 2026 🙏\nScegli una voce dal menu:",
+        reply_markup=main_menu
     )
 
-    await update.message.reply_text(text, reply_markup=reply_markup, parse_mode="Markdown")
+async def vangelo_del_giorno(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    dati = contenuto_del_giorno()
+    if dati:
+        testo = f"📖 *Vangelo del giorno*\n\n{dati['vangelo']}"
+    else:
+        testo = "Non ho trovato il vangelo per oggi."
+    await update.message.reply_text(testo, parse_mode="Markdown", reply_markup=main_menu)
 
+async def lettura_del_giorno(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    dati = contenuto_del_giorno()
+    if dati:
+        testo = f"📜 *Lettura del giorno*\n\n{dati['lettura']}"
+    else:
+        testo = "Non ho trovato la lettura per oggi."
+    await update.message.reply_text(testo, parse_mode="Markdown", reply_markup=main_menu)
 
-async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
+async def preghiera_mattino(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    dati = contenuto_del_giorno()
+    if dati:
+        testo = f"🌅 *Preghiera del mattino*\n\n{dati['mattino']}"
+    else:
+        testo = "Non ho trovato la preghiera del mattino."
+    await update.message.reply_text(testo, parse_mode="Markdown", reply_markup=main_menu)
 
-    data = query.data
-    chat_id = query.message.chat_id
+async def preghiera_sera(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    dati = contenuto_del_giorno()
+    if dati:
+        testo = f"🌙 *Preghiera della sera*\n\n{dati['sera']}"
+    else:
+        testo = "Non ho trovato la preghiera della sera."
+    await update.message.reply_text(testo, parse_mode="Markdown", reply_markup=main_menu)
 
-    if data == "vangelo":
-        text = get_first_entry_text(RSS_VANGELO)
-        if text:
-            await query.edit_message_text(text, parse_mode="Markdown")
-        else:
-            await query.edit_message_text("Non è stato possibile caricare il Vangelo. Riprova più tardi.")
+async def santo_del_giorno(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    dati = contenuto_del_giorno()
+    if dati:
+        testo = f"👼 *Santo del giorno*\n\n{dati['santo']}"
+    else:
+        testo = "Non ho trovato il santo del giorno."
+    await update.message.reply_text(testo, parse_mode="Markdown", reply_markup=main_menu)
 
-    elif data == "lettura":
-        text = get_first_entry_text(RSS_LETTURA)
-        if text:
-            await query.edit_message_text(text, parse_mode="Markdown")
-        else:
-            await query.edit_message_text("Non è stato possibile caricare la lettura. Riprova più tardi.")
+async def riflessione(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    dati = contenuto_del_giorno()
+    if dati:
+        testo = f"✨ *Riflessione*\n\n{dati['riflessione']}"
+    else:
+        testo = "Non ho trovato la riflessione per oggi."
+    await update.message.reply_text(testo, parse_mode="Markdown", reply_markup=main_menu)
 
-    elif data == "mattino":
-        await query.edit_message_text("🙏 *Preghiera del mattino*\n\nSignore, ti offro questo nuovo giorno...", parse_mode="Markdown")
+async def rosario(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    dati = contenuto_del_giorno()
+    if dati:
+        testo = f"🌟 *Rosario consigliato*\n\n{dati['rosario']}"
+    else:
+        testo = "Non ho trovato il rosario consigliato."
+    await update.message.reply_text(testo, parse_mode="Markdown", reply_markup=main_menu)
 
-    elif data == "sera":
-        await query.edit_message_text("🌙 *Preghiera della sera*\n\nSignore, ti ringrazio per questa giornata...", parse_mode="Markdown")
+async def novena_del_giorno(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    dati = contenuto_del_giorno()
+    if dati:
+        testo = f"🙏 *Novena del giorno*\n\n{dati['novena']}"
+    else:
+        testo = "Non ho trovato la novena per oggi."
+    await update.message.reply_text(testo, parse_mode="Markdown", reply_markup=main_menu)
 
-    elif data == "santo":
-        await query.edit_message_text("✝️ *Santo del giorno*\n\n(qui inseriremo il santo del giorno)", parse_mode="Markdown")
+# -------------------------------
+# AVVIO BOT
+# -------------------------------
 
-    elif data == "riflessione":
-        await query.edit_message_text("💭 *Riflessione*\n\n(qui inseriremo una riflessione quotidiana)", parse_mode="Markdown")
-
-    elif data == "rosario":
-        await query.edit_message_text("📿 *Rosario*\n\n(qui inseriremo il testo del Rosario)", parse_mode="Markdown")
-
-    elif data == "novena":
-        await query.edit_message_text("🕊️ *Novena del giorno*\n\n(qui inseriremo la novena)", parse_mode="Markdown")
-
-    elif data == "iscriviti":
-        subs = load_subscribers()
-        if chat_id not in subs:
-            subs.append(chat_id)
-            save_subscribers(subs)
-            await query.edit_message_text("📬 Ti sei iscritto al Vangelo quotidiano delle 7.")
-        else:
-            await query.edit_message_text("Sei già iscritto al Vangelo quotidiano.")
-
-    elif data == "disiscriviti":
-        subs = load_subscribers()
-        if chat_id in subs:
-            subs.remove(chat_id)
-            save_subscribers(subs)
-            await query.edit_message_text("❌ Hai disattivato il Vangelo quotidiano.")
-        else:
-            await query.edit_message_text("Non risulti iscritto al Vangelo quotidiano.")
-
+logging.basicConfig(level=logging.INFO)
+TOKEN = os.environ.get("TELEGRAM_TOKEN")
 
 def main():
-    if not TOKEN:
-        raise RuntimeError("TELEGRAM_TOKEN non impostato nelle variabili d'ambiente")
-
     app = ApplicationBuilder().token(TOKEN).build()
 
+    # Comandi
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(CallbackQueryHandler(button_handler))
+
+    # Pulsanti del menu
+    app.add_handler(MessageHandler(filters.Text("📖 Vangelo del giorno"), vangelo_del_giorno))
+    app.add_handler(MessageHandler(filters.Text("📜 Lettura del giorno"), lettura_del_giorno))
+    app.add_handler(MessageHandler(filters.Text("🌅 Preghiera del mattino"), preghiera_mattino))
+    app.add_handler(MessageHandler(filters.Text("🌙 Preghiera della sera"), preghiera_sera))
+    app.add_handler(MessageHandler(filters.Text("👼 Santo del giorno"), santo_del_giorno))
+    app.add_handler(MessageHandler(filters.Text("✨ Riflessione"), riflessione))
+    app.add_handler(MessageHandler(filters.Text("🌟 Rosario consigliato"), rosario))
+    app.add_handler(MessageHandler(filters.Text("🙏 Novena del giorno"), novena_del_giorno))
 
     app.run_polling()
-
 
 if __name__ == "__main__":
     main()
